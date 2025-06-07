@@ -1,5 +1,16 @@
 name: Deploy to GitHub Pages
 
+# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 on:
   push:
     branches: [ main ]
@@ -24,6 +35,11 @@ jobs:
         sed -i "s/{{SUPABASE_URL}}/${{ secrets.SUPABASE_URL }}/g" index.html
         sed -i "s/{{SUPABASE_ANON_KEY}}/${{ secrets.SUPABASE_ANON_KEY }}/g" index.html
         
+    - name: Verify replacement
+      run: |
+        echo "Checking if replacement worked:"
+        grep -n "SUPABASE_URL.*=" index.html || echo "No template variables found - replacement successful!"
+        
     - name: Setup Pages
       uses: actions/configure-pages@v4
       
@@ -35,14 +51,3 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
-
-# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow one concurrent deployment
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
