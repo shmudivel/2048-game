@@ -258,10 +258,10 @@
         </div>
 
         <div class="leaderboard" id="leaderboard">
-            <h3>Leaderboard</h3>
+            <h3>Global Leaderboard</h3>
             <div id="score-list">
                 <div class="score-entry">
-                    <span>No scores yet</span>
+                    <span>Loading scores...</span>
                     <span>-</span>
                 </div>
             </div>
@@ -269,16 +269,80 @@
     </div>
 
     <script>
+        // Supabase configuration - these values are replaced during build
+        const SUPABASE_URL = '{{SUPABASE_URL}}';
+        const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}';
+        
+        // Simple Supabase client implementation
+        class SupabaseClient {
+            constructor(url, key) {
+                this.url = url;
+                this.key = key;
+                this.headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${key}`,
+                    'apikey': key
+                };
+            }
+            
+            async insert(table, data) {
+                const response = await fetch(`${this.url}/rest/v1/${table}`, {
+                    method: 'POST',
+                    headers: {
+                        ...this.headers,
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Insert failed: ${response.statusText}`);
+                }
+                
+                return response.json();
+            }
+            
+            async select(table, options = {}) {
+                let url = `${this.url}/rest/v1/${table}`;
+                const params = new URLSearchParams();
+                
+                if (options.order) {
+                    params.append('order', options.order);
+                }
+                if (options.limit) {
+                    params.append('limit', options.limit);
+                }
+                
+                if (params.toString()) {
+                    url += `?${params.toString()}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: this.headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Select failed: ${response.statusText}`);
+                }
+                
+                return response.json();
+            }
+        }
+        
+        // Initialize Supabase client
+        const supabase = new SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         class Game2048 {
             constructor() {
                 this.grid = [];
                 this.score = 0;
                 this.best = parseInt(localStorage.getItem('best2048')) || 0;
                 this.size = 4;
-                this.savedScores = JSON.parse(localStorage.getItem('2048Scores')) || [];
+                this.globalScores = [];
                 this.init();
                 this.bindEvents();
-                this.updateLeaderboard();
+                this.loadGlobalHighScores();
             }
 
             init() {
@@ -356,6 +420,8 @@
                     if (this.score > this.best) {
                         this.best = this.score;
                         localStorage.setItem('best2048', this.best);
+                        // Also save best score to Supabase
+                        this.saveBestScore();
                     }
                     
                     if (this.hasWon()) {
@@ -527,35 +593,88 @@
                 this.init();
             }
 
-            saveScore() {
+            async saveScore() {
                 const playerName = document.getElementById('player-name').value.trim() || 'Anonymous';
                 if (this.score > 0) {
                     const scoreEntry = {
-                        name: playerName,
+                        player_name: playerName,
                         score: this.score,
-                        date: new Date().toLocaleDateString()
+                        created_at: new Date().toISOString()
                     };
                     
-                    this.savedScores.push(scoreEntry);
-                    this.savedScores.sort((a, b) => b.score - a.score);
-                    this.savedScores = this.savedScores.slice(0, 10);
+                    try {
+                        // Save to Supabase
+                        await this.saveToSupabase(scoreEntry);
+                        console.log('Score saved to Supabase!');
+                        // Refresh leaderboard
+                        await this.loadGlobalHighScores();
+                    } catch (error) {
+                        console.error('Error saving score to Supabase:', error);
+                        // Fallback to localStorage
+                        const backupScores = JSON.parse(localStorage.getItem('2048_backup_scores') || '[]');
+                        backupScores.push(scoreEntry);
+                        localStorage.setItem('2048_backup_scores', JSON.stringify(backupScores));
+                        console.log('Score saved to localStorage as backup');
+                    }
+                }
+            }
+
+            async saveBestScore() {
+                const playerName = document.getElementById('player-name').value.trim() || 'Anonymous';
+                try {
+                    const bestScoreEntry = {
+                        player_name: playerName,
+                        best_score: this.best,
+                        created_at: new Date().toISOString()
+                    };
                     
-                    localStorage.setItem('2048Scores', JSON.stringify(this.savedScores));
+                    await supabase.insert('best_scores', bestScoreEntry);
+                    console.log('Best score saved to Supabase!');
+                } catch (error) {
+                    console.error('Error saving best score to Supabase:', error);
+                }
+            }
+
+            async saveToSupabase(scoreEntry) {
+                try {
+                    await supabase.insert('game_scores', scoreEntry);
+                    return true;
+                } catch (error) {
+                    console.error('Error saving to Supabase:', error);
+                    throw error;
+                }
+            }
+
+            async loadGlobalHighScores() {
+                try {
+                    console.log('Loading global high scores from Supabase...');
+                    this.globalScores = await supabase.select('game_scores', {
+                        order: 'score.desc',
+                        limit: 10
+                    });
                     this.updateLeaderboard();
+                    console.log('Loaded', this.globalScores.length, 'global scores from Supabase');
+                } catch (error) {
+                    console.error('Error loading high scores from Supabase:', error);
+                    // Try to load backup scores from localStorage
+                    const backupScores = JSON.parse(localStorage.getItem('2048_backup_scores') || '[]');
+                    this.globalScores = backupScores.sort((a, b) => b.score - a.score).slice(0, 10);
+                    this.updateLeaderboard();
+                    console.log('Loaded backup scores from localStorage');
                 }
             }
 
             updateLeaderboard() {
                 const scoreList = document.getElementById('score-list');
                 
-                if (this.savedScores.length === 0) {
-                    scoreList.innerHTML = '<div class="score-entry"><span>No scores yet</span><span>-</span></div>';
+                if (!this.globalScores || this.globalScores.length === 0) {
+                    scoreList.innerHTML = '<div class="score-entry"><span>No scores yet - be the first!</span><span>-</span></div>';
                     return;
                 }
                 
-                scoreList.innerHTML = this.savedScores.map((entry, index) => `
+                scoreList.innerHTML = this.globalScores.map((entry, index) => `
                     <div class="score-entry">
-                        <span>${index + 1}. ${entry.name}</span>
+                        <span>${index + 1}. ${entry.player_name || entry.name}</span>
                         <span>${entry.score}</span>
                     </div>
                 `).join('');
