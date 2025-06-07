@@ -17,6 +17,7 @@
             color: #776e65;
             text-align: center;
             padding: 20px;
+            overflow-x: hidden;
         }
 
         .container {
@@ -90,11 +91,12 @@
             background: #eee4da;
             border-radius: 3px;
             font-weight: bold;
-            font-size: calc(16px + 2vw);
+            font-size: calc(20px + 3vw);
             display: flex;
             justify-content: center;
             align-items: center;
             transition: all 0.15s ease-in-out;
+            box-shadow: none;
         }
 
         .tile-2 { background: #eee4da; color: #776e65; }
@@ -103,11 +105,11 @@
         .tile-16 { background: #f59563; color: #f9f6f2; }
         .tile-32 { background: #f67c5f; color: #f9f6f2; }
         .tile-64 { background: #f65e3b; color: #f9f6f2; }
-        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
-        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
-        .tile-512 { background: #edc850; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
-        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: calc(10px + 1.2vw); }
-        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: calc(10px + 1.2vw); }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: calc(16px + 2.5vw); }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: calc(16px + 2.5vw); }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: calc(16px + 2.5vw); }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: calc(14px + 2vw); }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: calc(14px + 2vw); }
 
         .restart-button {
             background: #8f7a66;
@@ -676,35 +678,51 @@
                     }
                 });
 
+                // Prevent page scrolling during game interaction
+                document.body.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+
                 // Touch events for mobile
                 let startX = 0;
                 let startY = 0;
-                let endX = 0;
-                let endY = 0;
+                let isSwipeActive = false;
                 const gameContainer = document.querySelector('.game-container');
                 
                 gameContainer.addEventListener('touchstart', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const touch = e.touches[0];
                     startX = touch.clientX;
                     startY = touch.clientY;
+                    isSwipeActive = true;
                 }, { passive: false });
                 
                 gameContainer.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
+                    if (isSwipeActive) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
                 }, { passive: false });
                 
                 gameContainer.addEventListener('touchend', (e) => {
                     e.preventDefault();
-                    if (e.changedTouches.length === 0) return;
+                    e.stopPropagation();
+                    
+                    if (!isSwipeActive || e.changedTouches.length === 0) {
+                        isSwipeActive = false;
+                        return;
+                    }
                     
                     const touch = e.changedTouches[0];
-                    endX = touch.clientX;
-                    endY = touch.clientY;
+                    const endX = touch.clientX;
+                    const endY = touch.clientY;
                     
                     const deltaX = endX - startX;
                     const deltaY = endY - startY;
                     const minSwipeDistance = 30;
+                    
+                    isSwipeActive = false;
                     
                     if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
                         return;
