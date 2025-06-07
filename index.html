@@ -50,10 +50,11 @@
             border-radius: 6px;
             padding: 10px;
             margin-bottom: 20px;
-            width: 500px;
-            height: 500px;
+            width: min(500px, 90vw);
+            height: min(500px, 90vw);
             margin-left: auto;
             margin-right: auto;
+            touch-action: manipulation;
         }
 
         .grid-container {
@@ -68,8 +69,8 @@
         }
 
         .grid-cell {
-            width: 107px;
-            height: 107px;
+            width: calc((min(500px, 90vw) - 60px) / 4);
+            height: calc((min(500px, 90vw) - 60px) / 4);
             background: rgba(238, 228, 218, 0.35);
             border-radius: 3px;
             margin: 5px;
@@ -84,12 +85,12 @@
 
         .tile {
             position: absolute;
-            width: 107px;
-            height: 107px;
+            width: calc((min(500px, 90vw) - 60px) / 4);
+            height: calc((min(500px, 90vw) - 60px) / 4);
             background: #eee4da;
             border-radius: 3px;
             font-weight: bold;
-            font-size: 32px;
+            font-size: calc(16px + 2vw);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -102,11 +103,11 @@
         .tile-16 { background: #f59563; color: #f9f6f2; }
         .tile-32 { background: #f67c5f; color: #f9f6f2; }
         .tile-64 { background: #f65e3b; color: #f9f6f2; }
-        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 28px; }
-        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 28px; }
-        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 28px; }
-        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 24px; }
-        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 24px; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: calc(12px + 1.5vw); }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: calc(10px + 1.2vw); }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: calc(10px + 1.2vw); }
 
         .restart-button {
             background: #8f7a66;
@@ -189,6 +190,85 @@
         .score-entry:last-child {
             border-bottom: none;
         }
+
+        .mobile-instructions {
+            display: none;
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #776e65;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 36px;
+                margin-bottom: 15px;
+            }
+            
+            .container {
+                max-width: 100%;
+            }
+            
+            .score-container {
+                flex-direction: row;
+                gap: 10px;
+            }
+            
+            .score-box {
+                flex: 1;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .player-section {
+                margin-bottom: 15px;
+            }
+            
+            .player-input {
+                width: 100%;
+                max-width: 200px;
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            
+            .restart-button {
+                padding: 12px 20px;
+                font-size: 18px;
+                margin: 10px 5px;
+            }
+            
+            .instructions {
+                display: none;
+            }
+            
+            .mobile-instructions {
+                display: block;
+            }
+            
+            .leaderboard {
+                margin-top: 15px;
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 28px;
+            }
+            
+            .score-container {
+                margin-bottom: 15px;
+            }
+            
+            .score-box {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -255,6 +335,10 @@
 
         <div class="instructions">
             <strong>HOW TO PLAY:</strong> Use your arrow keys to move the tiles. When two tiles with the same number touch, they merge into one!
+        </div>
+
+        <div class="mobile-instructions">
+            <strong>HOW TO PLAY:</strong> Swipe in any direction to move the tiles. When two tiles with the same number touch, they merge into one!
         </div>
 
         <div class="leaderboard" id="leaderboard">
@@ -376,14 +460,18 @@
                 const container = document.getElementById('tile-container');
                 container.innerHTML = '';
                 
+                const gameContainer = document.querySelector('.game-container');
+                const containerWidth = gameContainer.offsetWidth - 20;
+                const tileSize = (containerWidth - 30) / 4;
+                
                 for (let i = 0; i < this.size; i++) {
                     for (let j = 0; j < this.size; j++) {
                         if (this.grid[i][j] !== 0) {
                             const tile = document.createElement('div');
                             tile.className = `tile tile-${this.grid[i][j]}`;
                             tile.textContent = this.grid[i][j];
-                            tile.style.left = (j * 117 + 5) + 'px';
-                            tile.style.top = (i * 117 + 5) + 'px';
+                            tile.style.left = (j * (tileSize + 10) + 5) + 'px';
+                            tile.style.top = (i * (tileSize + 10) + 5) + 'px';
                             container.appendChild(tile);
                         }
                     }
@@ -587,6 +675,57 @@
                         this.move(e.key);
                     }
                 });
+
+                // Touch events for mobile
+                let startX = 0;
+                let startY = 0;
+                let endX = 0;
+                let endY = 0;
+                const gameContainer = document.querySelector('.game-container');
+                
+                gameContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                }, { passive: false });
+                
+                gameContainer.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                gameContainer.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (e.changedTouches.length === 0) return;
+                    
+                    const touch = e.changedTouches[0];
+                    endX = touch.clientX;
+                    endY = touch.clientY;
+                    
+                    const deltaX = endX - startX;
+                    const deltaY = endY - startY;
+                    const minSwipeDistance = 30;
+                    
+                    if (Math.abs(deltaX) < minSwipeDistance && Math.abs(deltaY) < minSwipeDistance) {
+                        return;
+                    }
+                    
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        // Horizontal swipe
+                        if (deltaX > 0) {
+                            this.move('ArrowRight');
+                        } else {
+                            this.move('ArrowLeft');
+                        }
+                    } else {
+                        // Vertical swipe
+                        if (deltaY > 0) {
+                            this.move('ArrowDown');
+                        } else {
+                            this.move('ArrowUp');
+                        }
+                    }
+                }, { passive: false });
             }
 
             restart() {
